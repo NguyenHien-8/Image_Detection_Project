@@ -1,0 +1,19 @@
+[requires]
+opencv/4.8.1
+websocketpp/0.8.2
+asio/1.28.0
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[options]
+opencv/*:shared=True
+opencv/*:with_dnn=True
+opencv/*:with_videoio=True
+opencv/*:with_jpeg=libjpeg
+opencv/*:with_png=True
+
+[imports]
+bin, *.dll -> ./bin
+lib, *.lib -> ./libP

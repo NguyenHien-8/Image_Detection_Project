@@ -1,129 +1,75 @@
-// ============================================
+// ========================== Nguyen Hien ==========================
 // FILE: src/layer2_detection.cpp
-// ============================================
+// Developer: TRAN NGUYEN HIEN
+// Email: trannguyenhien29085@gmail.com
+// =================================================================
+// ========================== Nguyen Hien ==========================
+// FILE: src/layer2_detection.cpp
+// =================================================================
 #include "layer2_detection.h"
 #include <iostream>
-#include <algorithm>
-#include <cmath>
 
-FaceDetector::FaceDetector(float conf_threshold)
-    : is_loaded(false), confidence_threshold(conf_threshold) {}
+static cv::Ptr<cv::FaceDetectorYN> model;
+static cv::Size inputSize(0, 0);
 
-FaceDetector::~FaceDetector() {}
+Layer2Detection::Layer2Detection() : isInitialized(false) {}
+Layer2Detection::~Layer2Detection() {}
 
-bool FaceDetector::loadModel(const std::string& proto_path, 
-                             const std::string& weights_path) {
+bool Layer2Detection::init(const std::string& modelPath, float scoreThreshold, float nmsThreshold) {
     try {
-        net = cv::dnn::readNetFromTensorflow(weights_path, proto_path);
+        // Init YuNet với size chuẩn 320x320 (Model sẽ tự scale input)
+        // Tuy nhiên để tối ưu, tí nữa ta setInputSize theo frame thực tế
+        model = cv::FaceDetectorYN::create(
+            modelPath, "", cv::Size(320, 320), 
+            scoreThreshold, nmsThreshold, 5000
+        );
         
-        if (net.empty()) {
-            std::cerr << "[ERROR] Failed to load model" << std::endl;
+        if (model.empty()) {
+            std::cerr << "[ERROR] Failed to load YuNet." << std::endl;
             return false;
         }
-        
-        net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
-        net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
-        
-        is_loaded = true;
-        std::cout << "[INFO] Face detection model loaded" << std::endl;
+        isInitialized = true;
         return true;
-    } catch (const std::exception& e) {
-        std::cerr << "[ERROR] Model loading failed: " << e.what() << std::endl;
+    } catch (const cv::Exception& e) {
+        std::cerr << "[ERROR] " << e.what() << std::endl;
         return false;
     }
 }
 
-Face FaceDetector::detect(const cv::Mat& frame) {
-    Face result;
-    result.detected = false;
-    result.confidence = 0.0f;
-    
-    if (!is_loaded || frame.empty()) {
-        return result;
-    }
-    
-    int h = frame.rows;
-    int w = frame.cols;
-    
-    // Create blob for neural network input
-    cv::Mat blob = cv::dnn::blobFromImage(frame, 1.0, 
-        cv::Size(300, 300), 
-        cv::Scalar(104.0, 177.0, 123.0), 
-        false, false);
-    
-    net.setInput(blob);
-    cv::Mat detections = net.forward();
-    
-    // Resize detection output
-    detections = detections.reshape(1, detections.total() / 7);
-    
-    // Parse detections
-    for (int i = 0; i < detections.rows; i++) {
-        float confidence = detections.at<float>(i, 2);
-        
-        if (confidence > confidence_threshold) {
-            // Get bounding box coordinates
-            int left = static_cast<int>(detections.at<float>(i, 3) * w);
-            int top = static_cast<int>(detections.at<float>(i, 4) * h);
-            int right = static_cast<int>(detections.at<float>(i, 5) * w);
-            int bottom = static_cast<int>(detections.at<float>(i, 6) * h);
-            
-            // Clamp to frame boundaries
-            left = std::max(0, left);
-            top = std::max(0, top);
-            right = std::min(w, right);
-            bottom = std::min(h, bottom);
-            
-            result.bbox = cv::Rect(left, top, right - left, bottom - top);
-            result.confidence = confidence;
-            result.detected = true;
-            
-            // Extract landmarks from face region
-            cv::Mat face_roi = frame(result.bbox);
-            result.landmarks = extractLandmarks(face_roi, result.bbox);
-            
-            return result; // Return first best detection
-        }
-    }
-    
-    return result;
-}
+bool Layer2Detection::detect(const cv::Mat& frame, FaceResult& result) {
+    if (!isInitialized || model.empty() || frame.empty()) return false;
 
-std::vector<cv::Point2f> FaceDetector::extractLandmarks(const cv::Mat& face_roi, 
-                                                        const cv::Rect& bbox) {
-    std::vector<cv::Point2f> landmarks;
+    // Cập nhật size model khớp với frame input (640x480)
+    if (frame.size() != inputSize) {
+        model->setInputSize(frame.size());
+        inputSize = frame.size();
+    }
+
+    cv::Mat faces;
+    model->detect(frame, faces);
+
+    if (faces.rows < 1) return false;
+
+    // Lấy khuôn mặt đầu tiên
+    float* data = faces.ptr<float>(0);
     
-    int roi_h = face_roi.rows;
-    int roi_w = face_roi.cols;
+    // Không cần nhân Scale nữa vì frame input là frame gốc
+    result.confidence = data[14];
+    result.bbox = cv::Rect((int)data[0], (int)data[1], (int)data[2], (int)data[3]);
+
+    result.landmarks.clear();
     
-    // Approximate 6 key landmarks positions in face ROI
-    // These are normalized positions, you can improve with better models
-    
-    // Left eye
-    cv::Point2f left_eye(roi_w * 0.35f, roi_h * 0.35f);
-    
-    // Right eye
-    cv::Point2f right_eye(roi_w * 0.65f, roi_h * 0.35f);
-    
-    // Left ear
-    cv::Point2f left_ear(roi_w * 0.1f, roi_h * 0.4f);
-    
-    // Right ear
-    cv::Point2f right_ear(roi_w * 0.9f, roi_h * 0.4f);
-    
-    // Nose
-    cv::Point2f nose(roi_w * 0.5f, roi_h * 0.5f);
-    
-    // Mouth
-    cv::Point2f mouth(roi_w * 0.5f, roi_h * 0.75f);
-    
-    // Convert to absolute frame coordinates
-    landmarks.push_back(left_eye + cv::Point2f(bbox.x, bbox.y));
-    landmarks.push_back(right_eye + cv::Point2f(bbox.x, bbox.y));
-    landmarks.push_back(left_ear + cv::Point2f(bbox.x, bbox.y));
-    landmarks.push_back(right_ear + cv::Point2f(bbox.x, bbox.y));
-    landmarks.push_back(nose + cv::Point2f(bbox.x, bbox.y));
-    landmarks.push_back(mouth + cv::Point2f(bbox.x, bbox.y));
-    
-    return landmarks;
+    // GIỮ NGUYÊN FIX MIRROR EFFECT (Đảo thứ tự mắt)
+    // Index 0: Mắt Phải (Right Eye)
+    result.landmarks.push_back(cv::Point2f(data[4], data[5]));   
+    // Index 1: Mắt Trái (Left Eye)
+    result.landmarks.push_back(cv::Point2f(data[6], data[7]));   
+    // Index 2: Mũi
+    result.landmarks.push_back(cv::Point2f(data[8], data[9]));   
+    // Index 3: Khóe miệng Phải
+    result.landmarks.push_back(cv::Point2f(data[10], data[11])); 
+    // Index 4: Khóe miệng Trái
+    result.landmarks.push_back(cv::Point2f(data[12], data[13])); 
+
+    return true;
 }

@@ -1,0 +1,1 @@
+. "/home/nguyen-hien/Documents/Image_Detection_Project/build/build/Release/generators/deactivate_conanbuildenv-release-x86_64.sh"

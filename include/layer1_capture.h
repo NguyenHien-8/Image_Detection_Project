@@ -1,31 +1,23 @@
-// ============================================
+// ========================== Nguyen Hien ==========================
 // FILE: include/layer1_capture.h
-// ============================================
-#ifndef LAYER1_CAPTURE_H
-#define LAYER1_CAPTURE_H
-
+// Developer: TRAN NGUYEN HIEN
+// Email: trannguyenhien29085@gmail.com
+// =================================================================
+#pragma once
 #include <opencv2/opencv.hpp>
-#include <string>
 
-class VideoCapture {
-private:
-    cv::VideoCapture camera;
-    int width;
-    int height;
-    int fps;
-    bool is_open;
-
+class Layer1Capture {
 public:
-    VideoCapture(int camera_id = 0, int w = 640, int h = 480, int f = 30);
-    ~VideoCapture();
-    
-    bool open();
-    bool getFrame(cv::Mat& frame);
-    void close();
-    
-    int getWidth() const { return width; }
-    int getHeight() const { return height; }
-    bool isOpened() const { return is_open; }
-};
+    Layer1Capture();  
+    ~Layer1Capture(); 
 
-#endif // LAYER1_CAPTURE_H
+    bool init(int camID = 0, int width = 640, int height = 480);
+    bool grabFrame(cv::Mat& frame);
+    void release();
+    static void convertToRGB(const cv::Mat& srcBgr, cv::Mat& dstRgb);
+    void show(const cv::String& windowName, const cv::Mat& frame);
+
+private:
+    cv::VideoCapture cap;
+    bool isInitialized;
+};

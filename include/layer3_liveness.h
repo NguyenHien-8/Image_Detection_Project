@@ -1,44 +1,24 @@
-// ============================================
+// ========================== Nguyen Hien ==========================
 // FILE: include/layer3_liveness.h
-// ============================================
-#ifndef LAYER3_LIVENESS_H
-#define LAYER3_LIVENESS_H
-
+// Developer: TRAN NGUYEN HIEN
+// Email: trannguyenhien29085@gmail.com
+// =================================================================
+#pragma once
 #include <opencv2/opencv.hpp>
 #include <vector>
-#include <deque>
 
-struct LivenessInfo {
-    bool is_live;
-    int blink_count;
-    float head_movement;
-    float confidence;
-    std::string status_message;
-};
-
-class LivenessDetector {
-private:
-    std::deque<float> eye_aspect_ratio_history;
-    std::deque<cv::Point2f> left_eye_history;
-    std::deque<cv::Point2f> right_eye_history;
-    
-    int blink_counter;
-    int history_size;
-    float ear_threshold;
-    float blink_sensitivity;
-    
-    float calculateEyeAspectRatio(const cv::Point2f& left_eye, 
-                                  const cv::Point2f& right_eye);
-    float calculateHeadMovement();
-    void detectBlink(float current_ear);
-
+class Layer3Liveness {
 public:
-    LivenessDetector(int hist_size = 15);
-    ~LivenessDetector();
+    Layer3Liveness();
     
-    void init();
-    LivenessInfo detect(const std::vector<cv::Point2f>& landmarks);
-    void reset();
-};
+    // Trả về true nếu là NGƯỜI THẬT + GÓC CHUẨN
+    bool checkLiveness(const cv::Mat& frame, const cv::Rect& faceBox, const std::vector<cv::Point2f>& landmarks);
 
-#endif // LAYER3_LIVENESS_H
+private:
+    std::vector<cv::Point3f> modelPoints;
+    
+    // Các hàm kiểm tra con
+    bool analyzePose(const std::vector<cv::Point2f>& lm, const cv::Size& frameSize);
+    bool analyzeTexture(const cv::Mat& faceROI);
+    bool analyzeColor(const cv::Mat& faceROI);
+};

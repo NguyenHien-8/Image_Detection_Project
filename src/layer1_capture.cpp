@@ -1,62 +1,70 @@
-// ============================================
+// ========================== Nguyen Hien ==========================
 // FILE: src/layer1_capture.cpp
-// ============================================
+// Developer: TRAN NGUYEN HIEN
+// Email: trannguyenhien29085@gmail.com
+// =================================================================
 #include "layer1_capture.h"
 #include <iostream>
 
-VideoCapture::VideoCapture(int camera_id, int w, int h, int f)
-    : width(w), height(h), fps(f), is_open(false) {
-    camera.open(camera_id);
+Layer1Capture::Layer1Capture() : isInitialized(false) {}
+
+Layer1Capture::~Layer1Capture() {
+    release();
 }
 
-VideoCapture::~VideoCapture() {
-    close();
-}
+bool Layer1Capture::init(int camID, int width, int height) {
+    if (isInitialized) {
+        release(); 
+    }
 
-bool VideoCapture::open() {
-    if (!camera.isOpened()) {
-        std::cerr << "[ERROR] Cannot open camera" << std::endl;
+    cap.open(camID, cv::CAP_V4L2);
+    if (!cap.isOpened()) {
+        std::cout << "[WARN] V4L2 backend not found, trying CAP_ANY..." << std::endl;
+        cap.open(camID, cv::CAP_ANY);
+    }
+
+    if (!cap.isOpened()) {
+        std::cerr << "[ERROR] Could not open camera " << camID << std::endl;
         return false;
     }
-    
-    // Set camera properties
-    camera.set(cv::CAP_PROP_FRAME_WIDTH, width);
-    camera.set(cv::CAP_PROP_FRAME_HEIGHT, height);
-    camera.set(cv::CAP_PROP_FPS, fps);
-    camera.set(cv::CAP_PROP_BUFFERSIZE, 1);
-    
-    is_open = true;
-    std::cout << "[INFO] Camera opened: " << width << "x" << height 
-              << " @ " << fps << "fps" << std::endl;
+
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
+    cap.set(cv::CAP_PROP_FPS, 30); // Try setting the FPS if your hardware supports it.
+
+    cv::Mat dummy;
+    for(int i = 0; i < 5; i++) {
+        cap.read(dummy);
+    }
+
+    isInitialized = true;
+    std::cout << "[INFO] Camera initialized successfully." << std::endl;
     return true;
 }
 
-bool VideoCapture::getFrame(cv::Mat& frame) {
-    if (!is_open) {
-        std::cerr << "[ERROR] Camera is not open" << std::endl;
+bool Layer1Capture::grabFrame(cv::Mat& frame) {
+    if (!isInitialized || !cap.isOpened()) return false;
+    if (!cap.read(frame) || frame.empty()) {
+        std::cerr << "[ERROR] Lost frame capture." << std::endl;
         return false;
     }
-    
-    cv::Mat raw_frame;
-    if (!camera.read(raw_frame)) {
-        std::cerr << "[ERROR] Failed to read frame" << std::endl;
-        return false;
-    }
-    
-    // Resize frame if needed
-    if (raw_frame.cols != width || raw_frame.rows != height) {
-        cv::resize(raw_frame, frame, cv::Size(width, height));
-    } else {
-        frame = raw_frame.clone();
-    }
-    
     return true;
 }
 
-void VideoCapture::close() {
-    if (camera.isOpened()) {
-        camera.release();
-        is_open = false;
-        std::cout << "[INFO] Camera closed" << std::endl;
+void Layer1Capture::release() {
+    if (cap.isOpened()) {
+        cap.release();
+    }
+    isInitialized = false;
+}
+
+void Layer1Capture::convertToRGB(const cv::Mat& srcBgr, cv::Mat& dstRgb) {
+    if (srcBgr.empty()) return;
+    cv::cvtColor(srcBgr, dstRgb, cv::COLOR_BGR2RGB);
+}
+
+void Layer1Capture::show(const cv::String& windowName, const cv::Mat& frame) {
+    if (!frame.empty()) {
+        cv::imshow(windowName, frame);
     }
 }

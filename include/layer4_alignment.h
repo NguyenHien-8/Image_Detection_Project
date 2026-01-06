@@ -1,33 +1,14 @@
-// ============================================
+// ========================== Nguyen Hien ==========================
 // FILE: include/layer4_alignment.h
-// ============================================
-#ifndef LAYER4_ALIGNMENT_H
-#define LAYER4_ALIGNMENT_H
-
+// Developer: TRAN NGUYEN HIEN
+// Email: trannguyenhien29085@gmail.com
+// =================================================================
+#pragma once
 #include <opencv2/opencv.hpp>
-#include <vector>
 
-struct AlignedFace {
-    cv::Mat face_image;      // Aligned 112x112 face
-    float rotation_angle;
-    cv::Point2f face_center;
-    bool success;
-};
-
-class FaceAligner {
-private:
-    int output_size;  // 112 or 160
-    
-    float calculateRotationAngle(const cv::Point2f& left_eye, 
-                                const cv::Point2f& right_eye);
-    cv::Point2f calculateFaceCenter(const std::vector<cv::Point2f>& landmarks);
-
+class Layer4Alignment {
 public:
-    FaceAligner(int size = 112);
-    ~FaceAligner();
-    
-    AlignedFace align(const cv::Mat& frame, 
-                     const std::vector<cv::Point2f>& landmarks);
+    cv::Mat align(const cv::Mat& frame,
+                  const cv::Point2f& leftEye,
+                  const cv::Point2f& rightEye);
 };
-
-#endif // LAYER4_ALIGNMENT_H

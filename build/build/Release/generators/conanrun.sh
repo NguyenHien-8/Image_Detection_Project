@@ -1,1 +1,0 @@
-. "/home/nguyen-hien/Documents/Image_Detection_Project/build/build/Release/generators/conanrunenv-release-x86_64.sh"

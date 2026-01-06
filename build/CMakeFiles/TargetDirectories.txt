@@ -1,3 +1,0 @@
-/home/nguyen-hien/Documents/Image_Detection_Project/build/CMakeFiles/face_app.dir
-/home/nguyen-hien/Documents/Image_Detection_Project/build/CMakeFiles/edit_cache.dir
-/home/nguyen-hien/Documents/Image_Detection_Project/build/CMakeFiles/rebuild_cache.dir

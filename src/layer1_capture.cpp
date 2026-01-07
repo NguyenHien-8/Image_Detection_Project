@@ -13,14 +13,15 @@ Layer1Capture::~Layer1Capture() {
 }
 
 bool Layer1Capture::init(int camID, int width, int height) {
-    if (isInitialized) {
-        release(); 
-    }
+    if (isInitialized) release();
 
-    cap.open(camID, cv::CAP_V4L2);
-    if (!cap.isOpened()) {
-        std::cout << "[WARN] V4L2 backend not found, trying CAP_ANY..." << std::endl;
-        cap.open(camID, cv::CAP_ANY);
+    int maxRetries = 3; // Retry 3 times
+    for(int i = 0; i < maxRetries; ++i) {
+        cap.open(camID, cv::CAP_V4L2);
+        if (!cap.isOpened()) cap.open(camID, cv::CAP_ANY);
+        if (cap.isOpened()) break;
+        std::cout << "[WARN] Camera busy, retrying in 1s... (" << i+1 << "/" << maxRetries << ")" << std::endl;
+        cv::waitKey(1000);
     }
 
     if (!cap.isOpened()) {

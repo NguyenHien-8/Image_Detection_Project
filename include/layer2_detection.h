@@ -19,11 +19,13 @@ public:
     ~Layer2Detection();
 
     bool init(const std::string& modelPath = "models/face_detection_yunet_2023mar.onnx", 
-              float scoreThreshold = 0.9f, 
+              float scoreThreshold = 0.6f, 
               float nmsThreshold = 0.3f);
 
-    bool detect(const cv::Mat& rgbFrame, FaceResult& result);
+    bool detect(const cv::Mat& bgrFrame, FaceResult& result);
 
 private:
     bool isInitialized;
+    cv::Ptr<cv::FaceDetectorYN> model; 
+    cv::Size currentInputSize; 
 };

@@ -1,9 +1,4 @@
 # Image_Detection_Project
-# Face Detection Pipeline - Pure C++ Implementation
-
-A production-ready 5-layer face detection system written **100% in C++** with real-time video processing, liveness detection, face alignment, and WebSocket data transmission.
-
-## 🎯 Project Overview
 
 ```
 Video Stream (Camera)
@@ -20,33 +15,6 @@ Video Stream (Camera)
         ↓
     Server/Database
 ```
-
-## ✨ Key Features
-
-- ✅ **Real-time Processing** - 30+ FPS on standard hardware
-- ✅ **Face Detection** - OpenCV DNN with ~95% accuracy
-- ✅ **Liveness Detection** - Blink & head movement detection
-- ✅ **Face Alignment** - Automatic rotation correction to 112x112
-- ✅ **WebSocket Communication** - Real-time data streaming
-- ✅ **Pure C++** - No Python dependencies
-- ✅ **Cross-platform** - Linux, macOS, Windows support
-- ✅ **Modular Design** - Each layer is independent
-
-## 📋 Prerequisites
-
-### System Requirements
-- OS: Ubuntu 18.04+, macOS 10.14+, Windows 10+
-- RAM: 2GB minimum
-- CPU: Dual-core processor
-- Camera: USB/built-in webcam
-
-### Software Requirements
-- **C++ Compiler**: GCC 9+, Clang 10+, MSVC 2019+
-- **CMake**: 3.10+
-- **OpenCV**: 4.0+
-- **Git**: Latest version
-
-## 🚀 Installation (Quick Start - 5 minutes)
 
 ### Step 1: Clone/Download Project
 
@@ -88,16 +56,6 @@ brew install websocketpp asio
 # May need to manually install WebSocket++
 git clone https://github.com/zaphoyd/websocketpp.git
 cp -r websocketpp/websocketpp /usr/local/include/
-```
-
-**Windows (with MSVC):**
-```powershell
-# Using vcpkg (recommended)
-git clone https://github.com/Microsoft/vcpkg.git
-.\vcpkg\vcpkg.exe integrate install
-.\vcpkg\vcpkg.exe install opencv:x64-windows
-.\vcpkg\vcpkg.exe install websocketpp:x64-windows
-.\vcpkg\vcpkg.exe install asio:x64-windows
 ```
 
 ### Step 3: Build Project
@@ -180,19 +138,6 @@ std::string device_id = "device_001";
 - **s** - Save detected face image
 - Any other key - Continue processing
 
-### Output Display
-```
-┌─────────────────────────────────┐
-│  LIVE (Confidence: 0.95)        │
-│  Blinks: 2                      │
-│  Rotation Angle: 5.2°           │
-│                                 │
-│  ╔═══════════════╗             │
-│  ║   [Face ROI]  ║             │
-│  ╚═══════════════╝             │
-└─────────────────────────────────┘
-```
-
 ## 🏗️ Layer Architecture Details
 
 ### Layer 1: Video Capture
@@ -233,17 +178,6 @@ std::string device_id = "device_001";
 - Sends via WebSocket
 - **Input**: AlignedFace + metadata
 - **Output**: JSON data to server
-
-## 📊 Performance Metrics
-
-| Metric | Value |
-|--------|-------|
-| **Frame Rate** | 30+ FPS |
-| **Detection Latency** | 50-100ms |
-| **Memory Usage** | 150-200MB |
-| **CPU Usage** | 20-40% (single core) |
-| **Face Detection Accuracy** | 95%+ |
-| **Model Size** | ~5MB |
 
 ## 🔗 WebSocket Message Format
 
@@ -345,125 +279,9 @@ class VideoCapture {
 };
 ```
 
-### FaceDetector Class
-```cpp
-class FaceDetector {
-    bool loadModel(const string& proto, const string& weights);
-    Face detect(const cv::Mat& frame);
-};
-```
-
-### LivenessDetector Class
-```cpp
-class LivenessDetector {
-    void init();
-    LivenessInfo detect(const vector<cv::Point2f>& landmarks);
-    void reset();
-};
-```
-
-### FaceAligner Class
-```cpp
-class FaceAligner {
-    AlignedFace align(const cv::Mat& frame, 
-                     const vector<cv::Point2f>& landmarks);
-};
-```
-
-### WebSocketSender Class
-```cpp
-class WebSocketSender {
-    bool connect(const string& uri);
-    bool sendData(const DataPackage& package);
-    bool isConnected() const;
-    void disconnect();
-};
-```
-
-## 🚢 Deployment
-
-### Docker Deployment
-```bash
-docker build -t face-detection .
-docker run --device /dev/video0 face-detection
-```
-
-### Production Setup
-1. Build Release version: `cmake -DCMAKE_BUILD_TYPE=Release`
-2. Run on dedicated device
-3. Use SystemD for auto-start
-4. Implement monitoring & logging
-5. Set up data backup
-
 ## 📞 Support & Resources
 
 - **Documentation**: See included `.md` files
 - **GitHub Issues**: Report bugs
 - **OpenCV Docs**: https://docs.opencv.org/
 - **WebSocket++**: https://www.zaphoyd.com/websocketpp/
-
-## 📄 License
-
-MIT License - See LICENSE file
-
-## 👨‍💻 Code Examples
-
-### Example 1: Process Single Frame
-```cpp
-#include "layer1_capture.h"
-#include "layer2_detection.h"
-
-int main() {
-    VideoCapture cap(0);
-    cap.open();
-    
-    FaceDetector detector;
-    detector.loadModel("./models/opencv_face_detector.pbtxt",
-                      "./models/opencv_face_detector_uint8.pb");
-    
-    cv::Mat frame;
-    cap.getFrame(frame);
-    
-    Face face = detector.detect(frame);
-    
-    if (face.detected) {
-        std::cout << "Face found at: " << face.bbox << std::endl;
-    }
-    
-    cap.close();
-    return 0;
-}
-```
-
-### Example 2: Full Pipeline
-```cpp
-FaceDetectionPipeline pipeline;
-pipeline.initialize(proto_path, weights_path, server_uri, device_id);
-pipeline.run();
-```
-
-## 🎓 Learning Resources
-
-1. **Understand Face Detection**: Read OpenCV documentation
-2. **Explore Landmarks**: Visualize 468 facial landmarks
-3. **Study WebSocket**: Learn async communication
-4. **Benchmark Performance**: Profile with Linux `perf` tool
-
-## ✅ Checklist Before Deployment
-
-- [ ] All dependencies installed
-- [ ] Models downloaded
-- [ ] Camera permissions configured
-- [ ] WebSocket server running
-- [ ] Network connectivity tested
-- [ ] Logging configured
-- [ ] Error handling verified
-- [ ] Performance benchmarked
-
----
-
-**Version**: 1.0.0  
-**Status**: Production Ready ✅  
-**Last Updated**: 2024
-
-For detailed layer-by-layer code structure, see `CODE_STRUCTURE.md`

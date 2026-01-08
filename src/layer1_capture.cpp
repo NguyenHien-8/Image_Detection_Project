@@ -20,12 +20,12 @@ bool Layer1Capture::init(int camID, int width, int height) {
         cap.open(camID, cv::CAP_V4L2);
         if (!cap.isOpened()) cap.open(camID, cv::CAP_ANY);
         if (cap.isOpened()) break;
-        std::cout << "[WARN] Camera busy, retrying in 1s... (" << i+1 << "/" << maxRetries << ")" << std::endl;
+        std::cout << "[Layer1]WARN: Camera busy, retrying in 1s... (" << i+1 << "/" << maxRetries << ")" << std::endl;
         cv::waitKey(1000);
     }
 
     if (!cap.isOpened()) {
-        std::cerr << "[ERROR] Could not open camera " << camID << std::endl;
+        std::cerr << "[Layer1]ERROR: Could not open camera " << camID << std::endl;
         return false;
     }
 
@@ -39,14 +39,14 @@ bool Layer1Capture::init(int camID, int width, int height) {
     }
 
     isInitialized = true;
-    std::cout << "[INFO] Camera initialized successfully." << std::endl;
+    std::cout << "[Layer1]INFO: Camera initialized successfully." << std::endl;
     return true;
 }
 
 bool Layer1Capture::grabFrame(cv::Mat& frame) {
     if (!isInitialized || !cap.isOpened()) return false;
     if (!cap.read(frame) || frame.empty()) {
-        std::cerr << "[ERROR] Lost frame capture." << std::endl;
+        std::cerr << "[Layer1]ERROR: Lost frame capture." << std::endl;
         return false;
     }
     return true;

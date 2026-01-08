@@ -1,5 +1,5 @@
 // ========================== Nguyen Hien ==========================
-// FILE: src/layer2_detection.cpp
+// FILE: src/layer2_detection.cpp (Use models YuNet)
 // Developer: TRAN NGUYEN HIEN
 // Email: trannguyenhien29085@gmail.com
 // =================================================================

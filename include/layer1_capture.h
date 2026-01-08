@@ -11,7 +11,7 @@ public:
     Layer1Capture();  
     ~Layer1Capture(); 
 
-    bool init(int camID = 0, int width = 640, int height = 480);
+    bool init(int camID = 2, int width = 640, int height = 480);
     bool grabFrame(cv::Mat& frame);
     void release();
     static void convertToRGB(const cv::Mat& srcBgr, cv::Mat& dstRgb);

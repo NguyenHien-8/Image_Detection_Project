@@ -11,6 +11,8 @@ include_directories(include)
 set(SOURCES
     src/layer1_capture.cpp
     src/layer2_detection.cpp
+    src/layer3_liveness.cpp
+    src/layer4_hybrid.cpp
     src/main.cpp 
 )
 

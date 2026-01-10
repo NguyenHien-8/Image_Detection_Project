@@ -1,5 +1,5 @@
-// ========================== Nguyen Hien ==========================
-// FILE: include/layer3_liveness.h 
+// =================================================================
+// FILE: include/layer3_liveness.h (RGB COMPATIBLE - MODIFIED)
 // Developer: TRAN NGUYEN HIEN
 // Email: trannguyenhien29085@gmail.com
 // =================================================================
@@ -10,15 +10,15 @@
 #include <numeric>
 
 enum class LivenessStatus {
-    REAL,       // Chắc chắn là thật (> 0.85)
-    SPOOF,      // Chắc chắn là giả (< 0.40)
-    UNCERTAIN   // Nghi ngờ (0.40 - 0.85) -> Cần Layer 4 check
+    REAL,       // Real person detected (score > 0.80)
+    SPOOF,      // Spoof/fake detected (score < 0.30)
+    UNCERTAIN   // Uncertain - needs Layer 4 verification (0.30 - 0.80)
 };
 
 struct LivenessResult {
-    LivenessStatus status; // Trạng thái xử lý
-    float score;           // Điểm số raw từ MiniFASNet
-    std::string message;   // Message hiển thị
+    LivenessStatus status; // Classification status
+    float score;           // Raw score from MiniFASNet [0-1]
+    std::string message;   // Status message for display
 };
 
 class Layer3Liveness {
@@ -28,6 +28,7 @@ public:
 
     bool init(const std::string& modelPath = "models/MiniFASNetV1SE.onnx");
     bool checkLiveness(const cv::Mat& frame, const cv::Rect& faceBox, LivenessResult& output);
+    
     void resetHistory();
 
 private:
@@ -35,8 +36,8 @@ private:
     cv::dnn::Net net;
     cv::Size inputSize; 
     
-    // Smoothing buffer
+    // Temporal smoothing buffer (exponential weighted moving average)
     std::deque<float> scoreHistory;
-    const size_t maxHistorySize = 8; // Giảm buffer xuống 8 để phản ứng nhanh hơn
+    const size_t maxHistorySize = 8; // 8 frames for fast response
     float getSmoothedScore(float currentScore);
 };

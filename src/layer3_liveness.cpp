@@ -3,6 +3,7 @@
 // Developer: TRAN NGUYEN HIEN
 // Email: trannguyenhien29085@gmail.com
 // =================================================================
+// FILE: src/layer3_liveness.cpp 
 #include "layer3_liveness.h"
 #include <iostream>
 
@@ -12,21 +13,13 @@ Layer3Liveness::~Layer3Liveness() {}
 bool Layer3Liveness::init(const std::string& modelPath) {
     try {
         net = cv::dnn::readNetFromONNX(modelPath);
-        if (net.empty()) {
-            std::cerr << "[Layer3]ERROR: Failed to load Liveness model at " << modelPath << std::endl;
-            return false;
-        }
-
-        // Dùng CPU để đảm bảo tính tương thích, nếu có GPU thì đổi backend
+        if (net.empty()) return false;
         net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
         net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
         isInitialized = true;
-        std::cout << "[Layer3]INFO: Liveness Model initialized." << std::endl;
+        std::cout << "[Layer3] INFO: MiniFASNet Optimized Init." << std::endl;
         return true;
-    } catch (const cv::Exception& e) {
-        std::cerr << "[Layer3]EXCEPTION: " << e.what() << std::endl;
-        return false;
-    }
+    } catch (...) { return false; }
 }
 
 void Layer3Liveness::resetHistory() { scoreHistory.clear(); }
@@ -34,63 +27,69 @@ void Layer3Liveness::resetHistory() { scoreHistory.clear(); }
 float Layer3Liveness::getSmoothedScore(float currentScore) {
     scoreHistory.push_back(currentScore);
     if (scoreHistory.size() > maxHistorySize) scoreHistory.pop_front();
-    float sum = std::accumulate(scoreHistory.begin(), scoreHistory.end(), 0.0f);
-    return sum / scoreHistory.size();
+    
+    float sum = 0, weightSum = 0;
+    for (size_t i = 0; i < scoreHistory.size(); ++i) {
+        // Trọng số mũ: Frame mới nhất quan trọng gấp đôi frame cũ nhất
+        float w = std::exp((float)i / scoreHistory.size()); 
+        sum += scoreHistory[i] * w;
+        weightSum += w;
+    }
+    return sum / weightSum;
 }
 
 bool Layer3Liveness::checkLiveness(const cv::Mat& frame, const cv::Rect& faceBox, LivenessResult& output) {
     if (!isInitialized || frame.empty()) return false;
 
-// 1. Prepare ROI (Scale 1.5x context)
-    float scale = 1.5f; 
-    int boxSize = std::max(faceBox.width, faceBox.height);
-    int newSize = (int)(boxSize * scale);
+    // --- TỐI ƯU CROP: Xử lý biên tốt hơn (Tránh viền đen) ---
+    // Scale box rộng ra để lấy ngữ cảnh (scale 2.0 thay vì 1.5 để bắt được viền thiết bị nếu có)
+    int size = std::max(faceBox.width, faceBox.height);
     int cx = faceBox.x + faceBox.width / 2;
     int cy = faceBox.y + faceBox.height / 2;
-    int x = cx - newSize / 2;
-    int y = cy - newSize / 2;
+    int side = (int)(size * 1.8f); // Tăng scale lên 1.8 - 2.0 chuẩn model hơn
 
-    cv::Mat faceRoi = cv::Mat::zeros(newSize, newSize, frame.type());
-    int srcX = std::max(0, x), srcY = std::max(0, y);
-    int srcW = std::min(x + newSize, frame.cols) - srcX;
-    int srcH = std::min(y + newSize, frame.rows) - srcY;
+    // Tính toán vùng ROI an toàn
+    int x1 = cx - side / 2;
+    int y1 = cy - side / 2;
+    int x2 = x1 + side;
+    int y2 = y1 + side;
 
-    if (srcW > 0 && srcH > 0) {
-        frame(cv::Rect(srcX, srcY, srcW, srcH))
-             .copyTo(faceRoi(cv::Rect(srcX - x, srcY - y, srcW, srcH)));
-    }
+    // Xử lý padding nếu box vượt ra ngoài khung hình (Border Replicate)
+    int top = 0, bottom = 0, left = 0, right = 0;
+    if (x1 < 0) { left = -x1; x1 = 0; }
+    if (y1 < 0) { top = -y1; y1 = 0; }
+    if (x2 > frame.cols) { right = x2 - frame.cols; x2 = frame.cols; }
+    if (y2 > frame.rows) { bottom = y2 - frame.rows; y2 = frame.rows; }
 
-    // 2. Inference MiniFASNet
+    cv::Mat croppedPart = frame(cv::Rect(x1, y1, x2 - x1, y2 - y1));
+    cv::Mat finalInput;
+    
+    // Quan trọng: Dùng BORDER_REPLICATE thay vì để đen
+    cv::copyMakeBorder(croppedPart, finalInput, top, bottom, left, right, cv::BORDER_REPLICATE);
+
+    // Resize chuẩn model
+    if (finalInput.size() != inputSize)
+        cv::resize(finalInput, finalInput, inputSize);
+
+    // Inference
     cv::Mat blob;
-    cv::dnn::blobFromImage(faceRoi, blob, 1.0, inputSize, cv::Scalar(0, 0, 0), true, false);
+    // Chuẩn hóa: Mean=[0,0,0], Std=[1,1,1] (MiniFASNet thường không cần mean subtraction phức tạp nếu train từ scratch)
+    cv::dnn::blobFromImage(finalInput, blob, 1.0, inputSize, cv::Scalar(0, 0, 0), true, false);
+    
     net.setInput(blob);
     cv::Mat prob = net.forward();
     
-    cv::Mat softmaxProb;
-    cv::exp(prob, softmaxProb);
-    float sum = (float)cv::sum(softmaxProb)[0];
-    float rawRealScore = softmaxProb.at<float>(0, 1) / sum; // Index 1 = Real
+    cv::Mat softmax;
+    cv::exp(prob, softmax);
+    float sumProb = (float)cv::sum(softmax)[0];
+    float realScore = softmax.at<float>(0, 1) / sumProb;
 
-    // 3. Smoothing & Decision Making
-    float finalScore = getSmoothedScore(rawRealScore);
-    output.score = finalScore;
-
-    // --- LOGIC PHÂN TẦNG (CASCADE) ---
-    // Ngưỡng Cao: Chắc chắn thật
-    if (finalScore > 0.85f) {
-        output.status = LivenessStatus::REAL;
-        output.message = "Real (Layer 3)";
-    } 
-    // Ngưỡng Thấp: Chắc chắn giả
-    else if (finalScore < 0.40f) {
-        output.status = LivenessStatus::SPOOF;
-        output.message = "Spoof (Layer 3)";
-    } 
-    // Vùng Xám: Nghi ngờ -> Đẩy sang Layer 4
-    else {
-        output.status = LivenessStatus::UNCERTAIN;
-        output.message = "Analyzing (Layer 4)...";
-    }
+    output.score = getSmoothedScore(realScore);
+    
+    // Logic threshold mềm dẻo hơn
+    if (output.score > 0.80) output.status = LivenessStatus::REAL; // Hạ nhẹ threshold vì đã xử lý input sạch
+    else if (output.score < 0.30) output.status = LivenessStatus::SPOOF;
+    else output.status = LivenessStatus::UNCERTAIN;
 
     return true;
 }

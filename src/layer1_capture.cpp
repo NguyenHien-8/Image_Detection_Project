@@ -39,16 +39,22 @@ bool Layer1Capture::init(int camID, int width, int height) {
     }
 
     isInitialized = true;
-    std::cout << "[Layer1]INFO: Camera initialized successfully." << std::endl;
+    std::cout << "[Layer1] INFO: Camera initialized successfully." << std::endl;
     return true;
 }
 
+// ===== Auto convert BGR -> RGB =====
 bool Layer1Capture::grabFrame(cv::Mat& frame) {
     if (!isInitialized || !cap.isOpened()) return false;
-    if (!cap.read(frame) || frame.empty()) {
-        std::cerr << "[Layer1]ERROR: Lost frame capture." << std::endl;
+    
+    cv::Mat frameBgr;
+    if (!cap.read(frameBgr) || frameBgr.empty()) {
+        std::cerr << "[Layer1] ERROR: Lost frame capture." << std::endl;
         return false;
     }
+    
+    // CRITICAL: Convert BGR to RGB immediately after capture
+    cv::cvtColor(frameBgr, frame, cv::COLOR_BGR2RGB);
     return true;
 }
 
@@ -65,7 +71,10 @@ void Layer1Capture::convertToRGB(const cv::Mat& srcBgr, cv::Mat& dstRgb) {
 }
 
 void Layer1Capture::show(const cv::String& windowName, const cv::Mat& frame) {
-    if (!frame.empty()) {
-        cv::imshow(windowName, frame);
-    }
+    if (frame.empty()) return;
+    
+    // IMPORTANT: cv::imshow expects BGR, so convert RGB back to BGR for display
+    cv::Mat displayFrame;
+    cv::cvtColor(frame, displayFrame, cv::COLOR_RGB2BGR);
+    cv::imshow(windowName, displayFrame);
 }

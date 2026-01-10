@@ -1,5 +1,5 @@
 // ========================== Nguyen Hien ==========================
-// FILE: include/layer1_capture.h
+// FILE: include/layer1_capture.h (RGB MODE - MODIFIED)
 // Developer: TRAN NGUYEN HIEN
 // Email: trannguyenhien29085@gmail.com
 // =================================================================

@@ -1,5 +1,5 @@
-// ========================== Nguyen Hien ==========================
-// FILE: include/layer2_detection.h (Use models YuNet)
+// =================================================================
+// FILE: include/layer2_detection.h (RGB COMPATIBLE - MODIFIED)
 // Developer: TRAN NGUYEN HIEN
 // Email: trannguyenhien29085@gmail.com
 // =================================================================
@@ -8,11 +8,10 @@
 #include <vector>
 
 struct FaceResult {
-    cv::Rect bbox;
-    std::vector<cv::Point2f> landmarks;
-    float confidence;
+    cv::Rect bbox;                      // Face bounding box
+    float confidence;                   // Detection confidence [0-1]
+    std::vector<cv::Point2f> landmarks; // 5 facial landmarks (eyes, nose, mouth corners)
 };
-
 class Layer2Detection {
 public:
     Layer2Detection();
@@ -21,8 +20,7 @@ public:
     bool init(const std::string& modelPath = "models/face_detection_yunet_2023mar.onnx", 
               float scoreThreshold = 0.6f, 
               float nmsThreshold = 0.3f);
-
-    bool detect(const cv::Mat& bgrFrame, FaceResult& result);
+    bool detect(const cv::Mat& rgbFrame, FaceResult& result);
 
 private:
     bool isInitialized;

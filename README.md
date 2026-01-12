@@ -6,14 +6,14 @@
 -----------------------------------------------------
 
 ```
-anti-spoofing/
+Image_Detection_Project/
 ├── include/
 │   ├── layer1_capture.h
 │   ├── layer2_detection.h
 │   ├── layer3_liveness.h
 │   ├── layer4_hybrid.h 
 ├── src/
-│   ├── main.cpp (REFACTORED)
+│   ├── main.cpp 
 │   ├── layer1_capture.cpp
 │   ├── layer2_detection.cpp
 │   ├── layer3_liveness.cpp 
@@ -21,7 +21,13 @@ anti-spoofing/
 ├── models/
 │   ├── face_detection_yunet_2023mar.onnx
 │   └── MiniFASNetV1SE.onnx
-├── CMakeLists.txt 
+│   └── MiniFASNetV2.onnx
+├── CMakeLists.txt
+├── .gitignore
+├── build.sh
+├── conanfile.txt
+├── LICENSE
+├── README.md 
 ```
 
 ------------------------------------------------- Installation instructions --------------------------------------------------

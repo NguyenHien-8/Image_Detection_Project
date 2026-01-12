@@ -32,6 +32,5 @@ private:
     int captureWidth;
     int captureHeight;
 
-    // MEMORY OPTIMIZATION: Buffer tái sử dụng cho việc hiển thị
     cv::Mat displayBuffer; 
 };

@@ -25,28 +25,26 @@ float Layer4Hybrid::analyzeTextureGradient(const cv::Mat& src) {
     
     float ratio = stdGrad.val[0] / (meanGrad.val[0] + 1e-6);
     float gradientScore = 0.0f;
-    
-    // BALANCED: Mở rộng range chấp nhận cho khuôn mặt thật
+
     if (ratio > 0.7f && ratio < 1.8f) {
-        gradientScore += 0.20f; // Giảm từ 0.25
+        gradientScore += 0.20f; 
     } 
     else if (ratio < 0.4f) {
-        gradientScore -= 0.35f; // Giảm từ -0.40
+        gradientScore -= 0.35f;
     } 
     else if (ratio > 2.2f) {
-        gradientScore -= 0.25f; // Giảm từ -0.30
+        gradientScore -= 0.25f; 
     }
     else {
-        gradientScore -= 0.10f; // Giảm từ -0.15
+        gradientScore -= 0.10f;
     }
     
-    // Mean gradient check - Nới lỏng hơn
     if (meanGrad.val[0] < 3.5f) {
         gradientScore -= 0.25f;
     } else if (meanGrad.val[0] > 25.0f) {
         gradientScore += 0.15f;
     } else if (meanGrad.val[0] > 8.0f) {
-        gradientScore += 0.05f; // Bonus cho gradient trung bình tốt
+        gradientScore += 0.05f;
     }
     
     return gradientScore;
@@ -65,11 +63,10 @@ float Layer4Hybrid::detectMoirePattern(const cv::Mat& src) {
     cv::meanStdDev(moireLaplacian, mean, stddev);
     float variance = stddev.val[0] * stddev.val[0];
     
-    // BALANCED: Chỉ penalty mạnh khi RẤT chắc chắn có moiré
-    if (variance > 1200) return -0.45f; // Tăng từ 1000
-    if (variance > 850) return -0.30f;  // Tăng từ 700
-    if (variance < 100) return -0.15f;  // Giảm từ 120
-    if (variance >= 150 && variance <= 500) return 0.15f; // Mở rộng range
+    if (variance > 1200) return -0.45f;
+    if (variance > 850) return -0.30f; 
+    if (variance < 100) return -0.15f; 
+    if (variance >= 150 && variance <= 500) return 0.15f; 
     return 0.0f;
 }
 
@@ -169,46 +166,39 @@ bool Layer4Hybrid::checkSkinConsistency(const cv::Mat& src, float& outScore) {
 
     float meanCrVal = (float)(sumCr / totalPixels);
     float meanCbVal = (float)(sumCb / totalPixels);
-    
     float score = 0.0f;
-    
-    // BALANCED: Mở rộng range YCrCb chấp nhận
-    bool validCr = (meanCrVal >= 125 && meanCrVal <= 180); // Mở rộng từ 133-173
-    bool validCb = (meanCbVal >= 70 && meanCbVal <= 135);  // Mở rộng từ 77-127
+    bool validCr = (meanCrVal >= 125 && meanCrVal <= 180);
+    bool validCb = (meanCbVal >= 70 && meanCbVal <= 135);  
     
     if (validCr && validCb) {
-        score += 0.25f; // Giảm từ 0.30
+        score += 0.25f;
     } else if (!validCr && !validCb) {
-        score -= 0.40f; // Giảm từ -0.45
+        score -= 0.40f;
     } else {
-        score -= 0.15f; // Giảm từ -0.25
+        score -= 0.15f; 
     }
 
-    // Contrast - Nới lỏng
     double contrast = maxY - minY;
     if (contrast < 25) {
-        score -= 0.30f; // Giảm từ -0.35
+        score -= 0.30f; 
     } else if (contrast > 140) {
-        score -= 0.15f; // Giảm từ -0.20
+        score -= 0.15f;
     } else if (contrast >= 40 && contrast <= 120) {
-        score += 0.15f; // Giảm từ 0.20
+        score += 0.15f; 
     }
     
-    // HSV - Nới lỏng
     cv::cvtColor(skinSmall, skinHSV, cv::COLOR_BGR2HSV);
     int from_to[] = {1, 0};
     if (plane0.size() != skinHSV.size()) plane0 = cv::Mat(skinHSV.size(), CV_8U);
     cv::mixChannels(&skinHSV, 1, &plane0, 1, from_to, 1);
-    
     cv::Scalar satMean = cv::mean(plane0);
     
-    // BALANCED: Saturation range rộng hơn
     if (satMean.val[0] >= 15 && satMean.val[0] <= 90) {
-        score += 0.15f; // Giảm từ 0.20
+        score += 0.15f; 
     } else if (satMean.val[0] < 8 || satMean.val[0] > 110) {
-        score -= 0.25f; // Giảm từ -0.30
+        score -= 0.25f; 
     } else {
-        score -= 0.08f; // Giảm từ -0.15
+        score -= 0.08f; 
     }
 
     outScore = score;
@@ -224,39 +214,34 @@ float Layer4Hybrid::analyzeColorTemperature(const cv::Mat& src) {
     float r = meanColor.val[2];
     float tempScore = 0.0f;
     
-    // BALANCED: Chấp nhận nhiều điều kiện ánh sáng hơn
     if (r > g && g > b) {
         float rg_ratio = r / (g + 1e-6);
         float gb_ratio = g / (b + 1e-6);
         
-        // Range rộng cho ánh sáng tự nhiên
         if (rg_ratio >= 1.05 && rg_ratio <= 1.45 && 
             gb_ratio >= 1.10 && gb_ratio <= 1.65) {
-            tempScore += 0.15f; // Giảm từ 0.20
+            tempScore += 0.15f;
         } 
         else if (rg_ratio >= 0.98 && rg_ratio <= 1.55 && 
                  gb_ratio >= 1.00 && gb_ratio <= 1.80) {
             tempScore += 0.05f;
         }
         else {
-            tempScore -= 0.10f; // Giảm từ -0.15
+            tempScore -= 0.10f; 
         }
     } 
-    // CRITICAL FIX: Không penalty mạnh cho thứ tự màu khác
-    // Vì ánh sáng tự nhiên có thể thay đổi balance màu
     else if (r > b && g > b) {
-        tempScore += 0.0f; // Không penalty nếu vẫn trong range ấm
+        tempScore += 0.0f; 
     }
     else {
-        tempScore -= 0.20f; // Giảm từ -0.30
+        tempScore -= 0.20f; 
     }
     
-    // Brightness check - Nới lỏng
     float avgBrightness = (r + g + b) / 3.0f;
     if (avgBrightness < 20 || avgBrightness > 235) {
         tempScore -= 0.15f;
     } else if (avgBrightness >= 40 && avgBrightness <= 200) {
-        tempScore += 0.05f; // Bonus cho brightness tốt
+        tempScore += 0.05f; 
     }
     
     return tempScore;
@@ -287,17 +272,15 @@ float Layer4Hybrid::detectScreenEdges(const cv::Mat& src) {
     
     int totalBorderEdges = topEdges + bottomEdges + leftEdges + rightEdges;
     int maxExpected = borderSize * edgeMap.cols * 2 + borderSize * edgeMap.rows * 2;
-    
     float edgeRatio = (float)totalBorderEdges / maxExpected;
     
-    // BALANCED: Chỉ penalty khi RẤT rõ ràng là viền màn hình
     if (edgeRatio > 0.20f) {
-        return -0.25f; // Giảm từ -0.30
+        return -0.25f;
     } else if (edgeRatio > 0.15f) {
-        return -0.12f; // Giảm từ -0.15
+        return -0.12f; 
     }
     
-    return 0.0f; // Không bonus
+    return 0.0f;
 }
 
 float Layer4Hybrid::analyzeQuality(const cv::Mat& frame, const cv::Rect& faceBox) {
@@ -333,24 +316,22 @@ float Layer4Hybrid::analyzeQuality(const cv::Mat& frame, const cv::Rect& faceBox
         double freqHigh = calculateHighFrequency(moireRoi);
         moireScore = detectMoirePattern(moireRoi);
         
-        // BALANCED: Threshold nới lỏng
         if (freqHigh > 17.0) {
-            moireScore -= 0.40f; // Giảm từ -0.45
+            moireScore -= 0.40f; 
         } else if (freqHigh > 14.5) {
-            moireScore -= 0.20f; // Giảm từ -0.25
+            moireScore -= 0.20f;
         } else if (freqHigh < 5.0) {
             moireScore -= 0.20f;
         } else if (freqHigh >= 7.0 && freqHigh <= 13.0) {
-            moireScore += 0.20f; // Giảm từ 0.25
+            moireScore += 0.20f; 
         }
     }
     
-    // CRITICAL FIX: Giảm weight của các component và cân bằng
-    float totalAdjustment = skinScore * 1.0f +      // Giảm từ 1.2
-                           textureScore * 0.8f +    // Giảm từ 1.0
-                           tempScore * 0.6f +       // Giảm từ 0.8
-                           edgeScore * 0.7f +       // Giảm từ 0.9
-                           moireScore * 0.9f;       // Giảm từ 1.1
+    float totalAdjustment = skinScore * 1.0f +      
+                           textureScore * 0.8f +   
+                           tempScore * 0.6f +      
+                           edgeScore * 0.7f +      
+                           moireScore * 0.9f;   
     
-    return std::max(-0.60f, std::min(0.50f, totalAdjustment)); // Giảm range
+    return std::max(-0.60f, std::min(0.50f, totalAdjustment)); 
 }

@@ -77,22 +77,19 @@ int main(int argc, char** argv) {
                     // Quality analysis
                     float adjustment = hybridLayer4.analyzeQuality(frameBgr, faceResult.bbox);
                     
-                    // CRITICAL FIX 1: Tăng weight Layer3, giảm ảnh hưởng Layer4
-                    float finalScore = liveResult.score * 0.75f + adjustment * 0.25f; // Từ 0.70/0.30
+                    float finalScore = liveResult.score * 0.75f + adjustment * 0.25f;
                     
-                    // CRITICAL FIX 2: Penalty nhẹ hơn cho adjustment âm
                     if (adjustment < -0.45f) {
-                        finalScore *= 0.80f; // Từ 0.75
+                        finalScore *= 0.80f;
                     } else if (adjustment < -0.35f) {
-                        finalScore *= 0.90f; // Từ 0.85
+                        finalScore *= 0.90f;
                     }
                     
                     finalScore = std::max(0.0f, std::min(1.0f, finalScore));
 
-                    // Swap attack detection
                     if (lastRealScore > 0.70f && rawScore < 0.35f) {
                         suddenDropCount++;
-                        if (suddenDropCount >= 3) { // Tăng từ 2
+                        if (suddenDropCount >= 3) { 
                             finalScore = std::min(finalScore, 0.35f);
                             spoofConsecutive = std::max(spoofConsecutive, 2);
                         }
@@ -100,17 +97,14 @@ int main(int argc, char** argv) {
                         suddenDropCount = 0;
                     }
 
-                    // CRITICAL FIX 3: Nới lỏng threshold
-                    bool passLayer3Basic = (liveResult.score > 0.60f);  // Từ 0.65
-                    bool passLayer3Strong = (liveResult.score > 0.70f); // Từ 0.75
-                    bool passLayer4 = (adjustment > -0.40f);            // Từ -0.35
-                    bool passLayer4Strong = (adjustment > -0.20f);      // Từ -0.15
+                    bool passLayer3Basic = (liveResult.score > 0.60f);  
+                    bool passLayer3Strong = (liveResult.score > 0.70f); 
+                    bool passLayer4 = (adjustment > -0.40f);            
+                    bool passLayer4Strong = (adjustment > -0.20f);      
                     
-                    // CRITICAL FIX 4: Điều kiện REAL dễ dàng hơn
                     bool isStrongReal = (finalScore > 0.75f && passLayer3Strong && passLayer4Strong);
                     bool isWeakReal = (finalScore > 0.65f && passLayer3Basic && passLayer4);
                     
-                    // CRITICAL FIX 5: Điều kiện FAKE chặt chẽ hơn (tránh false positive)
                     bool isStrongFake = (finalScore < 0.30f || adjustment < -0.50f || liveResult.score < 0.25f);
                     bool isWeakFake = (finalScore < 0.45f && liveResult.score < 0.55f && adjustment < -0.35f);
 
@@ -122,7 +116,7 @@ int main(int argc, char** argv) {
                         if (isStrongReal) {
                             confidenceAccumulator += 2.0f;
                         } else {
-                            confidenceAccumulator += 1.5f; // Tăng từ 1.0
+                            confidenceAccumulator += 1.5f; 
                         }
                     } else {
                         realConsecutive = 0;
@@ -133,28 +127,24 @@ int main(int argc, char** argv) {
                             lastRealScore = -1.0f;
                         }
                     }
-
-                    // CRITICAL FIX 6: Logic hiển thị cân bằng
                     cv::Scalar color;
                     
-                    // REAL: Giảm yêu cầu frames và confidence
+                    // REAL: 
                     if (realConsecutive >= 4 && confidenceAccumulator >= 6.0f) {
                         color = cv::Scalar(0, 255, 0); // XANH
                     } 
-                    // FAKE: Tăng yêu cầu để chắc chắn
+                    // FAKE: 
                     else if (spoofConsecutive >= 4 || isStrongFake) {
-                        color = cv::Scalar(0, 0, 255); // ĐỎ
+                        color = cv::Scalar(0, 0, 255); // DO
                     }
                     // Analyzing
                     else {
-                        color = cv::Scalar(0, 255, 255); // VÀNG
+                        color = cv::Scalar(0, 255, 255); // VANG
                     }
 
-                    // Vẽ khung theo màu
                     cv::rectangle(frameBgr, faceResult.bbox, color, 2);
                 }
             } else {
-                // Không tìm thấy mặt
                 missingFaceCounter++;
                 if (missingFaceCounter > 10) {
                     realConsecutive = 0;

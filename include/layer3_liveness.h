@@ -39,12 +39,10 @@ private:
     std::string outputName;
     const size_t maxHistorySize = 8;
     float previousScore = -1.0f;
-    float lastRawScore = -1.0f; // MỚI: Lưu raw score
-    int consecutiveLowCount = 0; // MỚI: Đếm frame liên tục thấp
+    float lastRawScore = -1.0f;
+    int consecutiveLowCount = 0;
     
     float getSmoothedScore(float currentScore);
-
-    // MEMORY OPTIMIZATION: Member variables
     cv::Mat validCrop;
     cv::Mat finalInput;
     cv::Mat blob;

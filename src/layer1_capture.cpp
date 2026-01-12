@@ -17,8 +17,6 @@ bool Layer1Capture::init(int camID, int captureWidth, int captureHeight,
     if (isInitialized) release();
 
     displaySize = cv::Size(displayWidth, displayHeight);
-    
-    // Lưu lại cấu hình để dùng cho getter
     this->captureWidth = captureWidth;
     this->captureHeight = captureHeight;
 
@@ -36,8 +34,6 @@ bool Layer1Capture::init(int camID, int captureWidth, int captureHeight,
     cap.set(cv::CAP_PROP_FRAME_WIDTH, captureWidth);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, captureHeight);
     cap.set(cv::CAP_PROP_FPS, 30);
-
-    // Đọc bỏ vài frame đầu để camera ổn định cân bằng trắng
     cv::Mat dummy;
     for(int i = 0; i < 10; i++) cap.read(dummy);
 
@@ -46,9 +42,7 @@ bool Layer1Capture::init(int camID, int captureWidth, int captureHeight,
     return true;
 }
 
-// FIX: Thêm các hàm bị thiếu mà main.cpp gọi
 int Layer1Capture::getMinFaceWidth() const {
-    // Logic: Khuôn mặt nhỏ quá 1/8 chiều rộng ảnh thì coi là xa/nhiễu
     return captureWidth / 8; 
 }
 
@@ -59,7 +53,6 @@ cv::Size Layer1Capture::getCaptureSize() const {
 bool Layer1Capture::grabFrame(cv::Mat& frame) {
     if (!isInitialized || !cap.isOpened()) return false;
     
-    // TỐI ƯU: Không convert sang RGB tại đây. Giữ BGR gốc của OpenCV để nhanh hơn.
     if (!cap.read(frame) || frame.empty()) {
         return false;
     }
@@ -68,9 +61,6 @@ bool Layer1Capture::grabFrame(cv::Mat& frame) {
 
 void Layer1Capture::show(const cv::String& windowName, const cv::Mat& frame) {
     if (frame.empty()) return;
-    
-    // MEMORY OPTIMIZATION: Tái sử dụng displayBuffer
-    // cv::resize thông minh: nếu displayBuffer đã đủ kích thước, nó không cấp phát lại bộ nhớ
     if (frame.size() == displaySize) {
         cv::imshow(windowName, frame);
     } else {

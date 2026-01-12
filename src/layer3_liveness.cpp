@@ -30,11 +30,10 @@ bool Layer3Liveness::init(const std::string& modelPath) {
 void Layer3Liveness::resetHistory() { 
     scoreHistory.clear();
     previousScore = -1.0f;
-    consecutiveLowCount = 0; // Reset counter
+    consecutiveLowCount = 0;
 }
 
 float Layer3Liveness::getSmoothedScore(float currentScore) {
-    // CẢI TIẾN 1: Phát hiện FAKE rõ ràng (score < 0.25) → Không smooth, trả về ngay
     if (currentScore < 0.25f) {
         scoreHistory.clear();
         scoreHistory.push_back(currentScore);
@@ -43,15 +42,13 @@ float Layer3Liveness::getSmoothedScore(float currentScore) {
         return currentScore;
     }
     
-    // CẢI TIẾN 2: Phát hiện chuyển từ REAL → FAKE đột ngột (swap attack)
     if (previousScore > 0.70f && currentScore < 0.45f) {
         scoreHistory.clear();
         previousScore = currentScore;
         consecutiveLowCount = 0;
-        return currentScore; // Không smooth để phản ứng nhanh
+        return currentScore; 
     }
     
-    // CẢI TIẾN 3: Reset nếu liên tục thấp (tránh làm mượt FAKE thành REAL)
     if (currentScore < 0.40f) {
         consecutiveLowCount++;
         if (consecutiveLowCount >= 3) {
@@ -61,23 +58,17 @@ float Layer3Liveness::getSmoothedScore(float currentScore) {
         consecutiveLowCount = 0;
     }
     
-    // Thêm vào history
     scoreHistory.push_back(currentScore);
     if (scoreHistory.size() > maxHistorySize) scoreHistory.pop_front();
     
-    // CẢI TIẾN 4: Weighted smoothing với trọng số nhẹ hơn cho frame cũ
     float sum = 0, weightSum = 0;
     for (size_t i = 0; i < scoreHistory.size(); ++i) {
-        // Exponential weight nhưng giảm ảnh hưởng của frame cũ
         float w = std::pow(1.8f, (float)i / scoreHistory.size()); 
         sum += scoreHistory[i] * w;
         weightSum += w;
     }
     
     float smoothed = sum / weightSum;
-    
-    // CẢI TIẾN 5: Nếu raw score và smoothed score chênh lệch quá lớn về phía thấp
-    // → Ưu tiên raw score (phát hiện nhanh FAKE)
     if (currentScore < smoothed - 0.20f) {
         smoothed = currentScore * 0.7f + smoothed * 0.3f;
     }
@@ -88,8 +79,6 @@ float Layer3Liveness::getSmoothedScore(float currentScore) {
 
 bool Layer3Liveness::checkLiveness(const cv::Mat& frame, const cv::Rect& faceBox, LivenessResult& output) {
     if (!isInitialized || frame.empty()) return false;
-
-    // 1. Tính toán Box (giữ nguyên)
     int cx = faceBox.x + faceBox.width / 2;
     int cy = faceBox.y + faceBox.height / 2;
     int maxSide = std::max(faceBox.width, faceBox.height);
@@ -116,8 +105,6 @@ bool Layer3Liveness::checkLiveness(const cv::Mat& frame, const cv::Rect& faceBox
 
     cv::copyMakeBorder(validCrop, borderBuffer, top, bottom, left, right, cv::BORDER_REPLICATE);
     cv::resize(borderBuffer, finalInput, inputSize);
-
-    // 2. Inference
     cv::dnn::blobFromImage(finalInput, blob, 1.0, inputSize, cv::Scalar(0, 0, 0), true, false);
     net.setInput(blob);
     
@@ -130,15 +117,9 @@ bool Layer3Liveness::checkLiveness(const cv::Mat& frame, const cv::Rect& faceBox
     cv::exp(prob, softmax); 
     float sumProb = (float)cv::sum(softmax)[0];
     float realScore = softmax.at<float>(0, 1) / sumProb;
-
-    // CẢI TIẾN 6: Lưu raw score để debug/analysis
     lastRawScore = realScore;
-    
-    // 3. Smoothing
     output.score = getSmoothedScore(realScore);
     
-    // CẢI TIẾN 7: Threshold động dựa trên độ tin cậy
-    // Nếu score rất thấp hoặc rất cao → Quyết định nhanh
     if (output.score > 0.85f) {
         output.status = LivenessStatus::REAL;
     } else if (output.score < 0.30f) {

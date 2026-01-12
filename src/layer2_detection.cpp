@@ -33,15 +33,10 @@ bool Layer2Detection::init(const std::string& modelPath, float scoreThreshold, f
 
 bool Layer2Detection::detect(const cv::Mat& frame, FaceResult& result) {
     if (!isInitialized || model.empty() || frame.empty()) return false;
-    
-    // Set input size chỉ khi kích thước thay đổi (giữ nguyên logic cũ là tốt)
     if (frame.size() != currentInputSize) {
         model->setInputSize(frame.size());
         currentInputSize = frame.size();
     }
-
-    // MEMORY OPTIMIZATION: Sử dụng member variable thay vì local variable
-    // facesResultBuffer sẽ được tái sử dụng memory ở các frame sau
     model->detect(frame, facesResultBuffer);
     
     if (facesResultBuffer.rows < 1) return false;

@@ -8,9 +8,9 @@
 #include <vector>
 
 struct FaceResult {
-    cv::Rect bbox;                      // Face bounding box
-    float confidence;                   // Detection confidence [0-1]
-    std::vector<cv::Point2f> landmarks; // 5 facial landmarks
+    cv::Rect bbox;                      
+    float confidence;                
+    std::vector<cv::Point2f> landmarks; 
 };
 
 class Layer2Detection {
@@ -22,7 +22,6 @@ public:
               float scoreThreshold = 0.6f, 
               float nmsThreshold = 0.3f);
 
-    // Input: BGR Frame (YuNet works fine with BGR)
     bool detect(const cv::Mat& frame, FaceResult& result);
 
 private:
@@ -30,6 +29,5 @@ private:
     cv::Ptr<cv::FaceDetectorYN> model; 
     cv::Size currentInputSize; 
     
-    // MEMORY OPTIMIZATION: Buffer kết quả detect
     cv::Mat facesResultBuffer;
 };

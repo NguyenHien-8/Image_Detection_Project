@@ -34,36 +34,49 @@ Image_Detection_Project/
 ```
 git clone https://github.com/NguyenHien-8/Image_Detection_Project.git
 ```
-
-# Xóa build cũ để làm sạch 
+# Setting pipx
+```
+sudo apt install pipx -y
+pipx ensurepath
+```
+# Setting Conan
+```
+pipx install conan
+```
+# Setting CMake
+```
+sudo apt install -y cmake
+```
+# Delete build
 ```
 rm -rf build 
 ```
-# Cách xóa cache (chỉ xóa OpenCV khuyến nghị)
+# Delete Cache Conan
+- Delete OpenCv
 ```
 conan remove "opencv/*" --confirm
 ```
-- Xóa Hết (Không An Toàn)
+- Delete All
 ```
 conan remove "*" --confirm
 ```
-# Install lại để tạo lại toolchain 
+# Create Toolchain 
 ```
 conan install . --output-folder=build --build=missing
 ```
-# Chạy CMake với đường dẫn chuẩn đến file toolchain 
+# Run CMake With The Toolchain File.
 ```
 cmake .. -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
 ```
-# Biên dịch 
+# Complie
 ```
 cmake --build .
 ```
-# Lệnh Kiểm Tra Kết Nối Camera: 
+# Check Camera Connection 
 ```
 v4l2-ctl --list-devices
 ```
-# Chạy chương trình
+# Run Programming
 ```
 sudo ./face_app
 ```

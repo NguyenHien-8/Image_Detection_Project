@@ -26,7 +26,7 @@ anti-spoofing/
 
 ------------------------------------------------- Installation instructions --------------------------------------------------
 ```
-git clone https://github.com/NguyenHien-8/Hardware-Library.git
+git clone https://github.com/NguyenHien-8/Image_Detection_Project.git
 ```
 ### 1.Windows
 **The command automatically creates directories for all branches**

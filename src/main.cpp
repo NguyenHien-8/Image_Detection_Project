@@ -1,18 +1,19 @@
 // ========================== Nguyen Hien ==========================
-// FILE: src/main.cpp (RGB PIPELINE - MODIFIED)
+// FILE: src/main.cpp (BALANCED ANTI-SPOOFING)
 // Developer: TRAN NGUYEN HIEN
 // Email: trannguyenhien29085@gmail.com
 // =================================================================
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <iomanip>
 #include "layer1_capture.h"
 #include "layer2_detection.h"
 #include "layer3_liveness.h"
 #include "layer4_hybrid.h"
 
 int main(int argc, char** argv) {
-    std::cout << "=== OPTIMIZED ANTI-SPOOFING SYSTEM (RGB Mode) ===" << std::endl;
+    std::cout << "=== ADVANCED ANTI-SPOOFING SYSTEM v2.2 ===" << std::endl;
     
     Layer1Capture camera;
     Layer2Detection detector;
@@ -20,127 +21,162 @@ int main(int argc, char** argv) {
     Layer4Hybrid   hybridLayer4;   
     
     try {
-        // ===== 1. Init Camera (outputs RGB) =====
-        if (!camera.init(2, 640, 480)) 
+        // ===== 1. Init Camera =====
+        if (!camera.init()) {
             throw std::runtime_error("[main] Failed to init camera! Check connection.");
+        }
 
-        // ===== 2. Init Face Detector (YuNet - handles RGB internally) =====
+        // ===== 2. Init Face Detector =====
         if (!detector.init("models/face_detection_yunet_2023mar.onnx")) 
             throw std::runtime_error("[main] Detector Init Failed");
 
-        // ===== 3. Init Liveness Layer 3 (MiniFASNet - RGB mode) =====
+        // ===== 3. Init Liveness Layer 3 =====
         if (!livenessLayer3.init("models/MiniFASNetV1SE.onnx")) 
             throw std::runtime_error("[main] Liveness Init Failed");
 
-        // IMPORTANT: frameRgb now holds RGB data throughout the pipeline
-        cv::Mat frameRgb;  // Changed variable name for clarity
+        cv::Mat frameBgr; 
         FaceResult faceResult;
         LivenessResult liveResult;
         
         int realConsecutive = 0;
-        const int UNLOCK_THRESHOLD = 10;
         int spoofConsecutive = 0;
-        float fps = 0.0f;
-        int frameCount = 0;
-        auto startTime = std::chrono::steady_clock::now();
+        int missingFaceCounter = 0;
+        
+        float lastRealScore = -1.0f;
+        int suddenDropCount = 0;
+        float confidenceAccumulator = 0.0f;
+        
+        int minFaceWidth = camera.getMinFaceWidth(); 
+        cv::Size captureSize = camera.getCaptureSize();
+        float fontScale = std::max(0.5f, captureSize.width / 1200.0f);
+        int thickness = std::max(1, (int)(fontScale * 2));
+
+        std::cout << "[main] System Running. Resolution: " << captureSize << std::endl;
 
         // ===== Main Loop =====
         while (true) {
-            // B1: Grab Frame (automatically converted to RGB in Layer1)
-            if (!camera.grabFrame(frameRgb)) {
-                std::cerr << "[main] WARN: Frame capture failed." << std::endl;
-                break;
-            }
+            if (!camera.grabFrame(frameBgr)) break;
             
-            // B2: Detect Face (Layer2 handles RGB->BGR conversion internally)
-            bool found = detector.detect(frameRgb, faceResult);
+            bool found = detector.detect(frameBgr, faceResult);
 
             if (found) {
-                if (faceResult.bbox.width < 100) { 
-                     cv::putText(frameRgb, "Come Closer", 
-                               cv::Point(faceResult.bbox.x, faceResult.bbox.y - 10), 
-                               0, 0.6, cv::Scalar(255, 255, 0), 2);  // RGB: Yellow
-                     realConsecutive = 0;
+                missingFaceCounter = 0;
+
+                if (faceResult.bbox.width < minFaceWidth) {
+                     cv::rectangle(frameBgr, faceResult.bbox, cv::Scalar(0, 255, 255), 2);
+                     livenessLayer3.resetHistory();
+                     realConsecutive = 0; 
+                     spoofConsecutive = 0;
+                     lastRealScore = -1.0f;
+                     confidenceAccumulator = 0.0f;
                 } else {
-                    // 1. Deep Learning Check (processes RGB)
-                    livenessLayer3.checkLiveness(frameRgb, faceResult.bbox, liveResult);
+                    // Liveness check
+                    livenessLayer3.checkLiveness(frameBgr, faceResult.bbox, liveResult);
+                    float rawScore = livenessLayer3.getLastRawScore();
                     
-                    // 2. Heuristic Check (processes RGB)
-                    float adjustment = hybridLayer4.analyzeQuality(frameRgb, faceResult.bbox);
+                    // Quality analysis
+                    float adjustment = hybridLayer4.analyzeQuality(frameBgr, faceResult.bbox);
                     
-                    // --- FUSION LOGIC ---
-                    float baseScore = liveResult.score;
-                    float finalScore = baseScore;
-
-                    if (adjustment < -0.25f) {
-                        finalScore = std::min(baseScore, 0.2f); 
+                    // CRITICAL FIX 1: Tăng weight Layer3, giảm ảnh hưởng Layer4
+                    float finalScore = liveResult.score * 0.75f + adjustment * 0.25f; // Từ 0.70/0.30
+                    
+                    // CRITICAL FIX 2: Penalty nhẹ hơn cho adjustment âm
+                    if (adjustment < -0.45f) {
+                        finalScore *= 0.80f; // Từ 0.75
+                    } else if (adjustment < -0.35f) {
+                        finalScore *= 0.90f; // Từ 0.85
                     }
-                    else if (baseScore > 0.3f && baseScore < 0.85f) {
-                        finalScore += adjustment;
-                    }
-                    else if (baseScore >= 0.85f) {
-                        if (adjustment < 0) finalScore += adjustment;
-                    }
-
+                    
                     finalScore = std::max(0.0f, std::min(1.0f, finalScore));
 
-                    // --- DECISION ---
-                    bool isReal = (finalScore > 0.80f); 
+                    // Swap attack detection
+                    if (lastRealScore > 0.70f && rawScore < 0.35f) {
+                        suddenDropCount++;
+                        if (suddenDropCount >= 3) { // Tăng từ 2
+                            finalScore = std::min(finalScore, 0.35f);
+                            spoofConsecutive = std::max(spoofConsecutive, 2);
+                        }
+                    } else if (rawScore > 0.60f) {
+                        suddenDropCount = 0;
+                    }
 
-                    cv::Scalar color;
-                    std::string statusText;
+                    // CRITICAL FIX 3: Nới lỏng threshold
+                    bool passLayer3Basic = (liveResult.score > 0.60f);  // Từ 0.65
+                    bool passLayer3Strong = (liveResult.score > 0.70f); // Từ 0.75
+                    bool passLayer4 = (adjustment > -0.40f);            // Từ -0.35
+                    bool passLayer4Strong = (adjustment > -0.20f);      // Từ -0.15
+                    
+                    // CRITICAL FIX 4: Điều kiện REAL dễ dàng hơn
+                    bool isStrongReal = (finalScore > 0.75f && passLayer3Strong && passLayer4Strong);
+                    bool isWeakReal = (finalScore > 0.65f && passLayer3Basic && passLayer4);
+                    
+                    // CRITICAL FIX 5: Điều kiện FAKE chặt chẽ hơn (tránh false positive)
+                    bool isStrongFake = (finalScore < 0.30f || adjustment < -0.50f || liveResult.score < 0.25f);
+                    bool isWeakFake = (finalScore < 0.45f && liveResult.score < 0.55f && adjustment < -0.35f);
 
-                    if (isReal) {
+                    if (isStrongReal || isWeakReal) {
                         realConsecutive++;
                         spoofConsecutive = 0;
+                        lastRealScore = finalScore;
+                        
+                        if (isStrongReal) {
+                            confidenceAccumulator += 2.0f;
+                        } else {
+                            confidenceAccumulator += 1.5f; // Tăng từ 1.0
+                        }
                     } else {
                         realConsecutive = 0;
-                        spoofConsecutive++;
+                        confidenceAccumulator = 0.0f;
+                        
+                        if (isStrongFake || isWeakFake) {
+                            spoofConsecutive++;
+                            lastRealScore = -1.0f;
+                        }
                     }
 
-                    if (realConsecutive >= UNLOCK_THRESHOLD) {
-                        statusText = "REAL PERSON";
-                        color = cv::Scalar(0, 255, 0);  // RGB: Green
-                        cv::rectangle(frameRgb, faceResult.bbox, color, 3);
-                    } else if (spoofConsecutive > 2) {
-                        statusText = "SPOOF / REPLAY";
-                        color = cv::Scalar(255, 0, 0);  // RGB: Red
-                        cv::rectangle(frameRgb, faceResult.bbox, color, 2);
-                    } else {
-                        statusText = "Verifying...";
-                        color = cv::Scalar(255, 255, 0);  // RGB: Yellow
-                        cv::rectangle(frameRgb, faceResult.bbox, color, 1);
+                    // CRITICAL FIX 6: Logic hiển thị cân bằng
+                    cv::Scalar color;
+                    
+                    // REAL: Giảm yêu cầu frames và confidence
+                    if (realConsecutive >= 4 && confidenceAccumulator >= 6.0f) {
+                        color = cv::Scalar(0, 255, 0); // XANH
+                    } 
+                    // FAKE: Tăng yêu cầu để chắc chắn
+                    else if (spoofConsecutive >= 4 || isStrongFake) {
+                        color = cv::Scalar(0, 0, 255); // ĐỎ
+                    }
+                    // Analyzing
+                    else {
+                        color = cv::Scalar(0, 255, 255); // VÀNG
                     }
 
-                    // Debug Info
-                    std::string debug = cv::format("AI:%.2f Phy:%+.2f = %.2f", 
-                                                  baseScore, adjustment, finalScore);
-                    cv::putText(frameRgb, statusText, 
-                              cv::Point(faceResult.bbox.x, faceResult.bbox.y - 10), 
-                              0, 0.8, color, 2);
-                    cv::putText(frameRgb, debug, 
-                              cv::Point(faceResult.bbox.x, faceResult.bbox.y + faceResult.bbox.height + 25), 
-                              0, 0.6, cv::Scalar(200, 200, 200), 1);
+                    // Vẽ khung theo màu
+                    cv::rectangle(frameBgr, faceResult.bbox, color, 2);
                 }
             } else {
+                // Không tìm thấy mặt
+                missingFaceCounter++;
+                if (missingFaceCounter > 10) {
+                    realConsecutive = 0;
+                    spoofConsecutive = 0;
+                    lastRealScore = -1.0f;
+                    suddenDropCount = 0;
+                    confidenceAccumulator = 0.0f;
+                    livenessLayer3.resetHistory();
+                }
+            }
+
+            camera.show("Anti-Spoofing Pro v2.2", frameBgr);
+            
+            char key = cv::waitKey(1);
+            if (key == 27) break; // ESC
+            if (key == 'r' || key == 'R') {
                 realConsecutive = 0;
+                spoofConsecutive = 0;
+                confidenceAccumulator = 0.0f;
                 livenessLayer3.resetHistory();
+                std::cout << "[main] Manual reset triggered" << std::endl;
             }
-
-            // FPS
-            frameCount++;
-            auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count() >= 1000) {
-                fps = (float)frameCount;
-                frameCount = 0;
-                startTime = now;
-            }
-            cv::putText(frameRgb, "FPS: " + std::to_string((int)fps), 
-                       cv::Point(10, 30), 0, 0.6, cv::Scalar(0, 255, 0), 2);
-
-            // Display (Layer1::show handles RGB->BGR conversion for cv::imshow)
-            camera.show("Hybrid Anti-Spoofing V3 (RGB)", frameRgb);
-            if (cv::waitKey(1) == 27) break;
         }
     }
     catch (const std::exception& e) {

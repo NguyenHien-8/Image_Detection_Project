@@ -33,23 +33,25 @@ bool Layer2Detection::init(const std::string& modelPath, float scoreThreshold, f
 
 bool Layer2Detection::detect(const cv::Mat& frame, FaceResult& result) {
     if (!isInitialized || model.empty() || frame.empty()) return false;
+    
+    // Set input size chỉ khi kích thước thay đổi (giữ nguyên logic cũ là tốt)
     if (frame.size() != currentInputSize) {
         model->setInputSize(frame.size());
         currentInputSize = frame.size();
     }
 
-    cv::Mat faces;
-    model->detect(frame, faces);
-    if (faces.rows < 1) return false;
+    // MEMORY OPTIMIZATION: Sử dụng member variable thay vì local variable
+    // facesResultBuffer sẽ được tái sử dụng memory ở các frame sau
+    model->detect(frame, facesResultBuffer);
+    
+    if (facesResultBuffer.rows < 1) return false;
 
-    float* data = faces.ptr<float>(0);  
+    float* data = facesResultBuffer.ptr<float>(0);  
     result.confidence = data[14];
     result.bbox = cv::Rect((int)data[0], (int)data[1], (int)data[2], (int)data[3]);
     result.bbox = result.bbox & cv::Rect(0, 0, frame.cols, frame.rows);
     result.landmarks.clear();
     
-    // Các landmarks: Mắt phải, Mắt trái, Mũi, Miệng phải, Miệng trái
-    // YuNet trả về float, giữ nguyên độ chính xác sub-pixel
     result.landmarks.push_back(cv::Point2f(data[4], data[5]));   
     result.landmarks.push_back(cv::Point2f(data[6], data[7]));   
     result.landmarks.push_back(cv::Point2f(data[8], data[9]));   

@@ -1,80 +1,85 @@
 // ========================== Nguyen Hien ==========================
-// FILE: src/layer1_capture.cpp
+// FILE: src/layer1_capture.cpp (HIGH-RES MODE)
 // Developer: TRAN NGUYEN HIEN
 // Email: trannguyenhien29085@gmail.com
 // =================================================================
 #include "layer1_capture.h"
 #include <iostream>
 
-Layer1Capture::Layer1Capture() : isInitialized(false) {}
+Layer1Capture::Layer1Capture() : isInitialized(false), displaySize(640, 480) {}
 
 Layer1Capture::~Layer1Capture() {
     release();
 }
 
-bool Layer1Capture::init(int camID, int width, int height) {
+bool Layer1Capture::init(int camID, int captureWidth, int captureHeight, 
+                         int displayWidth, int displayHeight) {
     if (isInitialized) release();
 
-    int maxRetries = 3; // Retry 3 times
+    displaySize = cv::Size(displayWidth, displayHeight);
+    
+    // Lưu lại cấu hình để dùng cho getter
+    this->captureWidth = captureWidth;
+    this->captureHeight = captureHeight;
+
+    int maxRetries = 3;
     for(int i = 0; i < maxRetries; ++i) {
         cap.open(camID, cv::CAP_V4L2);
         if (!cap.isOpened()) cap.open(camID, cv::CAP_ANY);
         if (cap.isOpened()) break;
-        std::cout << "[Layer1]WARN: Camera busy, retrying in 1s... (" << i+1 << "/" << maxRetries << ")" << std::endl;
-        cv::waitKey(1000);
+        std::cout << "[Layer1] WARN: Camera busy, retrying... (" << i+1 << ")" << std::endl;
+        cv::waitKey(500);
     }
 
-    if (!cap.isOpened()) {
-        std::cerr << "[Layer1]ERROR: Could not open camera " << camID << std::endl;
-        return false;
-    }
+    if (!cap.isOpened()) return false;
 
-    cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
-    cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
-    cap.set(cv::CAP_PROP_FPS, 30); // Try setting the FPS if your hardware supports it.
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, captureWidth);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, captureHeight);
+    cap.set(cv::CAP_PROP_FPS, 30);
 
+    // Đọc bỏ vài frame đầu để camera ổn định cân bằng trắng
     cv::Mat dummy;
-    for(int i = 0; i < 5; i++) {
-        cap.read(dummy);
-    }
+    for(int i = 0; i < 10; i++) cap.read(dummy);
 
     isInitialized = true;
-    std::cout << "[Layer1] INFO: Camera initialized successfully." << std::endl;
+    std::cout << "[Layer1] INFO: Camera OK (" << captureWidth << "x" << captureHeight << ")" << std::endl;
     return true;
 }
 
-// ===== Auto convert BGR -> RGB =====
+// FIX: Thêm các hàm bị thiếu mà main.cpp gọi
+int Layer1Capture::getMinFaceWidth() const {
+    // Logic: Khuôn mặt nhỏ quá 1/8 chiều rộng ảnh thì coi là xa/nhiễu
+    return captureWidth / 8; 
+}
+
+cv::Size Layer1Capture::getCaptureSize() const {
+    return cv::Size(captureWidth, captureHeight);
+}
+
 bool Layer1Capture::grabFrame(cv::Mat& frame) {
     if (!isInitialized || !cap.isOpened()) return false;
     
-    cv::Mat frameBgr;
-    if (!cap.read(frameBgr) || frameBgr.empty()) {
-        std::cerr << "[Layer1] ERROR: Lost frame capture." << std::endl;
+    // TỐI ƯU: Không convert sang RGB tại đây. Giữ BGR gốc của OpenCV để nhanh hơn.
+    if (!cap.read(frame) || frame.empty()) {
         return false;
     }
-    
-    // CRITICAL: Convert BGR to RGB immediately after capture
-    cv::cvtColor(frameBgr, frame, cv::COLOR_BGR2RGB);
-    return true;
-}
-
-void Layer1Capture::release() {
-    if (cap.isOpened()) {
-        cap.release();
-    }
-    isInitialized = false;
-}
-
-void Layer1Capture::convertToRGB(const cv::Mat& srcBgr, cv::Mat& dstRgb) {
-    if (srcBgr.empty()) return;
-    cv::cvtColor(srcBgr, dstRgb, cv::COLOR_BGR2RGB);
+    return true; 
 }
 
 void Layer1Capture::show(const cv::String& windowName, const cv::Mat& frame) {
     if (frame.empty()) return;
     
-    // IMPORTANT: cv::imshow expects BGR, so convert RGB back to BGR for display
-    cv::Mat displayFrame;
-    cv::cvtColor(frame, displayFrame, cv::COLOR_RGB2BGR);
-    cv::imshow(windowName, displayFrame);
+    // MEMORY OPTIMIZATION: Tái sử dụng displayBuffer
+    // cv::resize thông minh: nếu displayBuffer đã đủ kích thước, nó không cấp phát lại bộ nhớ
+    if (frame.size() == displaySize) {
+        cv::imshow(windowName, frame);
+    } else {
+        cv::resize(frame, displayBuffer, displaySize);
+        cv::imshow(windowName, displayBuffer);
+    }
+}
+
+void Layer1Capture::release() {
+    if (cap.isOpened()) cap.release();
+    isInitialized = false;
 }

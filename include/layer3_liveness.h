@@ -33,15 +33,13 @@ private:
     bool isInitialized;
     cv::dnn::Net net;
     cv::Size inputSize;
-    cv::Mat borderBuffer;
-    
+    cv::Mat borderBuffer;   
     std::deque<float> scoreHistory;
     std::string outputName;
     const size_t maxHistorySize = 8;
     float previousScore = -1.0f;
     float lastRawScore = -1.0f;
-    int consecutiveLowCount = 0;
-    
+    int consecutiveLowCount = 0; 
     float getSmoothedScore(float currentScore);
     cv::Mat validCrop;
     cv::Mat finalInput;

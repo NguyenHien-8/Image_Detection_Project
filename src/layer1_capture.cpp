@@ -20,8 +20,7 @@ bool Layer1Capture::init(int camID, int captureWidth, int captureHeight,
     this->captureWidth = captureWidth;
     this->captureHeight = captureHeight;
 
-    int maxRetries = 3;
-    for(int i = 0; i < maxRetries; ++i) {
+    for(int i = 0; i < 3; ++i) {
         cap.open(camID, cv::CAP_V4L2);
         if (!cap.isOpened()) cap.open(camID, cv::CAP_ANY);
         if (cap.isOpened()) break;

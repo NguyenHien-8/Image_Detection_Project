@@ -83,13 +83,11 @@ bool Layer3Liveness::checkLiveness(const cv::Mat& frame, const cv::Rect& faceBox
     int cy = faceBox.y + faceBox.height / 2;
     int maxSide = std::max(faceBox.width, faceBox.height);
     int side = (int)(maxSide * 1.8f);
-
     int desiredX = cx - side / 2;
     int desiredY = cy - side / 2;
 
     cv::Rect desiredRect(desiredX, desiredY, side, side);
     cv::Rect frameRect(0, 0, frame.cols, frame.rows);
-
     cv::Rect validRect = desiredRect & frameRect;
     if (validRect.area() == 0) return false;
 

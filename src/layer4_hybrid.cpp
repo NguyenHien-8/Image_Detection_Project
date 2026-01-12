@@ -18,7 +18,6 @@ float Layer4Hybrid::analyzeTextureGradient(const cv::Mat& src) {
     cv::Sobel(grayBuffer, gradX, CV_32F, 1, 0, 3);
     cv::Sobel(grayBuffer, gradY, CV_32F, 0, 1, 3);
     cv::magnitude(gradX, gradY, magnitude);
-    
     cv::Scalar meanGrad = cv::mean(magnitude);
     cv::Scalar stdGrad;
     cv::meanStdDev(magnitude, cv::Scalar(), stdGrad); 
@@ -28,14 +27,11 @@ float Layer4Hybrid::analyzeTextureGradient(const cv::Mat& src) {
 
     if (ratio > 0.7f && ratio < 1.8f) {
         gradientScore += 0.20f; 
-    } 
-    else if (ratio < 0.4f) {
+    } else if (ratio < 0.4f) { 
         gradientScore -= 0.35f;
-    } 
-    else if (ratio > 2.2f) {
+    } else if (ratio > 2.2f) {
         gradientScore -= 0.25f; 
-    }
-    else {
+    } else {
         gradientScore -= 0.10f;
     }
     
@@ -58,7 +54,6 @@ float Layer4Hybrid::detectMoirePattern(const cv::Mat& src) {
     
     cv::Laplacian(moireGray, moireLaplacian, CV_32F, 3);
     cv::convertScaleAbs(moireLaplacian, moireLaplacian);
-    
     cv::Scalar mean, stddev;
     cv::meanStdDev(moireLaplacian, mean, stddev);
     float variance = stddev.val[0] * stddev.val[0];
@@ -132,7 +127,6 @@ double Layer4Hybrid::calculateHighFrequency(const cv::Mat& src) {
 
 bool Layer4Hybrid::checkSkinConsistency(const cv::Mat& src, float& outScore) {
     if (src.empty()) return false;
-
     cv::resize(src, skinSmall, cv::Size(64, 64));
     cv::cvtColor(skinSmall, skinYCrCb, cv::COLOR_BGR2YCrCb);
     
@@ -146,11 +140,9 @@ bool Layer4Hybrid::checkSkinConsistency(const cv::Mat& src, float& outScore) {
             uchar y = ptr[3*i];
             uchar cr = ptr[3*i + 1];
             uchar cb = ptr[3*i + 2];
-
             sumY += y;
             sumCr += cr;
             sumCb += cb;
-            
             if (y < minY) minY = y;
             if (y > maxY) maxY = y;
         }
@@ -249,14 +241,11 @@ float Layer4Hybrid::analyzeColorTemperature(const cv::Mat& src) {
 
 float Layer4Hybrid::detectScreenEdges(const cv::Mat& src) {
     if (src.empty() || src.cols < 60 || src.rows < 60) return 0.0f;
-    
-    cv::resize(src, edgeBuffer, cv::Size(120, 120));
-    
+    cv::resize(src, edgeBuffer, cv::Size(120, 120)); 
     if (edgeBuffer.channels() == 3) 
         cv::cvtColor(edgeBuffer, grayBuffer, cv::COLOR_BGR2GRAY);
     else 
         edgeBuffer.copyTo(grayBuffer);
-    
     cv::Canny(grayBuffer, edgeMap, 50, 150);
     
     int borderSize = 5;
@@ -269,7 +258,6 @@ float Layer4Hybrid::detectScreenEdges(const cv::Mat& src) {
     int bottomEdges = cv::countNonZero(edgeMap(bottomBorder));
     int leftEdges = cv::countNonZero(edgeMap(leftBorder));
     int rightEdges = cv::countNonZero(edgeMap(rightBorder));
-    
     int totalBorderEdges = topEdges + bottomEdges + leftEdges + rightEdges;
     int maxExpected = borderSize * edgeMap.cols * 2 + borderSize * edgeMap.rows * 2;
     float edgeRatio = (float)totalBorderEdges / maxExpected;
@@ -285,28 +273,22 @@ float Layer4Hybrid::detectScreenEdges(const cv::Mat& src) {
 
 float Layer4Hybrid::analyzeQuality(const cv::Mat& frame, const cv::Rect& faceBox) {
     cv::Rect safeBox = faceBox & cv::Rect(0, 0, frame.cols, frame.rows);
-    if (safeBox.area() <= 100) return -0.5f; 
-    
+    if (safeBox.area() <= 100) return -0.5f;  
     cv::Mat faceRoi = frame(safeBox);
     
     // 1. Skin consistency
     float skinScore = 0.0f;
-    checkSkinConsistency(faceRoi, skinScore);
-    
+    checkSkinConsistency(faceRoi, skinScore);   
     // 2. Texture gradient
     float textureScore = analyzeTextureGradient(faceRoi);
-    
     // 3. Color temperature
     float tempScore = analyzeColorTemperature(faceRoi);
-    
     // 4. Screen edge detection
     float edgeScore = detectScreenEdges(faceRoi);
-    
     // 5. Moire + High frequency
     int centerSize = std::min(safeBox.width, safeBox.height) / 2;
     int cx = safeBox.x + safeBox.width / 2;
     int cy = safeBox.y + safeBox.height / 2;
-    
     cv::Rect moireRect(cx - centerSize/2, cy - centerSize/2, centerSize, centerSize);
     moireRect = moireRect & cv::Rect(0, 0, frame.cols, frame.rows);
     

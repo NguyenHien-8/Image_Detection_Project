@@ -6,7 +6,6 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 #include <vector>
-
 struct FaceResult {
     cv::Rect bbox;                      
     float confidence;                
@@ -21,13 +20,11 @@ public:
     bool init(const std::string& modelPath, 
               float scoreThreshold = 0.6f, 
               float nmsThreshold = 0.3f);
-
     bool detect(const cv::Mat& frame, FaceResult& result);
 
 private:
     bool isInitialized;
     cv::Ptr<cv::FaceDetectorYN> model; 
     cv::Size currentInputSize; 
-    
     cv::Mat facesResultBuffer;
 };

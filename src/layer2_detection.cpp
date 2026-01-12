@@ -7,7 +7,6 @@
 #include <iostream>
 
 Layer2Detection::Layer2Detection() : isInitialized(false), currentInputSize(0, 0) {}
-
 Layer2Detection::~Layer2Detection() {}
 
 bool Layer2Detection::init(const std::string& modelPath, float scoreThreshold, float nmsThreshold) {

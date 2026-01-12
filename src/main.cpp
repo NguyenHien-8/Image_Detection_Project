@@ -13,7 +13,7 @@
 #include "layer4_hybrid.h"
 
 int main(int argc, char** argv) {
-    std::cout << "=== ADVANCED ANTI-SPOOFING SYSTEM v2.2 ===" << std::endl;
+    std::cout << "=== ANTI-SPOOFING SYSTEM ===" << std::endl;
     
     Layer1Capture camera;
     Layer2Detection detector;
@@ -41,7 +41,6 @@ int main(int argc, char** argv) {
         int realConsecutive = 0;
         int spoofConsecutive = 0;
         int missingFaceCounter = 0;
-        
         float lastRealScore = -1.0f;
         int suddenDropCount = 0;
         float confidenceAccumulator = 0.0f;
@@ -56,7 +55,6 @@ int main(int argc, char** argv) {
         // ===== Main Loop =====
         while (true) {
             if (!camera.grabFrame(frameBgr)) break;
-            
             bool found = detector.detect(frameBgr, faceResult);
 
             if (found) {
@@ -76,7 +74,6 @@ int main(int argc, char** argv) {
                     
                     // Quality analysis
                     float adjustment = hybridLayer4.analyzeQuality(frameBgr, faceResult.bbox);
-                    
                     float finalScore = liveResult.score * 0.75f + adjustment * 0.25f;
                     
                     if (adjustment < -0.45f) {
@@ -101,10 +98,8 @@ int main(int argc, char** argv) {
                     bool passLayer3Strong = (liveResult.score > 0.70f); 
                     bool passLayer4 = (adjustment > -0.40f);            
                     bool passLayer4Strong = (adjustment > -0.20f);      
-                    
                     bool isStrongReal = (finalScore > 0.75f && passLayer3Strong && passLayer4Strong);
-                    bool isWeakReal = (finalScore > 0.65f && passLayer3Basic && passLayer4);
-                    
+                    bool isWeakReal = (finalScore > 0.65f && passLayer3Basic && passLayer4);     
                     bool isStrongFake = (finalScore < 0.30f || adjustment < -0.50f || liveResult.score < 0.25f);
                     bool isWeakFake = (finalScore < 0.45f && liveResult.score < 0.55f && adjustment < -0.35f);
 

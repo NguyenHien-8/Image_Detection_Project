@@ -11,20 +11,17 @@ anti-spoofing/
 │   ├── layer1_capture.h
 │   ├── layer2_detection.h
 │   ├── layer3_liveness.h
-│   ├── layer4_hybrid.h (UPDATED)
-│   └── anti_spoof_decision.h (NEW!)
+│   ├── layer4_hybrid.h 
 ├── src/
 │   ├── main.cpp (REFACTORED)
 │   ├── layer1_capture.cpp
 │   ├── layer2_detection.cpp
-│   ├── layer3_liveness.cpp (OPTIMIZED)
-│   ├── layer4_hybrid.cpp (OPTIMIZED)
-│   └── anti_spoof_decision.cpp (NEW!)
+│   ├── layer3_liveness.cpp 
+│   ├── layer4_hybrid.cpp 
 ├── models/
 │   ├── face_detection_yunet_2023mar.onnx
 │   └── MiniFASNetV1SE.onnx
-├── CMakeLists.txt (UPDATED)
-└── BUILD_GUIDE.md (this file)
+├── CMakeLists.txt 
 ```
 
 ------------------------------------------------- Installation instructions --------------------------------------------------

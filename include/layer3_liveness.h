@@ -27,7 +27,7 @@ public:
     bool init(const std::string& modelPath);
     bool checkLiveness(const cv::Mat& frame, const cv::Rect& faceBox, LivenessResult& output);
     void resetHistory();
-    float getLastRawScore() const; // MỚI: Lấy raw score để debug
+    float getLastRawScore() const;
 
 private:
     bool isInitialized;

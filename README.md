@@ -28,6 +28,40 @@ anti-spoofing/
 ```
 git clone https://github.com/NguyenHien-8/Image_Detection_Project.git
 ```
+
+# Xóa build cũ để làm sạch 
+```
+rm -rf build 
+```
+# Cách xóa cache (chỉ xóa OpenCV khuyến nghị)
+```
+conan remove "opencv/*" --confirm
+```
+- Xóa Hết (Không An Toàn)
+```
+conan remove "*" --confirm
+```
+# Install lại để tạo lại toolchain 
+```
+conan install . --output-folder=build --build=missing
+```
+# Chạy CMake với đường dẫn chuẩn đến file toolchain 
+```
+cmake .. -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+```
+# Biên dịch 
+```
+cmake --build .
+```
+# Lệnh Kiểm Tra Kết Nối Camera: 
+```
+v4l2-ctl --list-devices
+```
+# Chạy chương trình
+```
+sudo ./face_app
+```
+
 ### 1.Windows
 **The command automatically creates directories for all branches**
 - On PowerShell
